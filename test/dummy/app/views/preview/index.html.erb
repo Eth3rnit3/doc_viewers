@@ -1,0 +1,38 @@
+<div class="container mx-auto px-4 py-8">
+  <h1 class="text-3xl font-bold mb-8">Document Preview Engine Demo</h1>
+  
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <!-- PDF Preview -->
+    <div class="space-y-4">
+      <h2 class="text-xl font-semibold">PDF Preview</h2>
+      <div class="h-96">
+        <%= document_preview_from_url(@pdf_url, doc_type: "pdf") %>
+      </div>
+    </div>
+    
+    <!-- Image Preview -->
+    <div class="space-y-4">
+      <h2 class="text-xl font-semibold">Image Preview</h2>
+      <div class="h-96">
+        <%= document_preview_from_url(@image_url, doc_type: "image") %>
+      </div>
+    </div>
+  </div>
+  
+  <div class="mt-8 space-y-4">
+    <h2 class="text-xl font-semibold">Usage Examples</h2>
+    <div class="bg-gray-100 p-4 rounded-lg">
+      <h3 class="font-medium mb-2">With Active Storage:</h3>
+      <code class="text-sm">
+        &lt;%= document_preview_for @report, file_field: :attachment %&gt;
+      </code>
+    </div>
+    
+    <div class="bg-gray-100 p-4 rounded-lg">
+      <h3 class="font-medium mb-2">With URL:</h3>
+      <code class="text-sm">
+        &lt;%= document_preview_from_url "https://example.com/document.pdf" %&gt;
+      </code>
+    </div>
+  </div>
+</div>

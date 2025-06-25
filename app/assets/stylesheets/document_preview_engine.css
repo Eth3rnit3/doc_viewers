@@ -1,0 +1,85 @@
+/* Document Preview Engine Styles */
+
+.document-preview-viewer {
+  @apply min-h-96;
+  container: document-preview / inline-size;
+}
+
+.document-preview-toolbar {
+  @apply backdrop-blur-sm;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.document-preview-canvas {
+  @apply relative;
+}
+
+.document-preview-canvas canvas {
+  @apply transition-transform duration-200 ease-in-out;
+}
+
+.document-preview-canvas img {
+  @apply transition-transform duration-200 ease-in-out;
+}
+
+/* Responsive adjustments */
+@container document-preview (max-width: 640px) {
+  .document-preview-toolbar {
+    @apply flex-col space-y-2 py-3;
+  }
+  
+  .document-preview-toolbar > div {
+    @apply justify-center;
+  }
+}
+
+/* Fullscreen styles */
+.document-preview-viewer:fullscreen {
+  @apply bg-black;
+}
+
+.document-preview-viewer:fullscreen .document-preview-toolbar {
+  @apply bg-gray-900 text-white border-gray-700;
+}
+
+.document-preview-viewer:fullscreen .document-preview-canvas {
+  @apply bg-black;
+}
+
+/* Loading animations */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Focus styles for accessibility */
+.document-preview-viewer button:focus-visible {
+  @apply outline-2 outline-offset-2 outline-blue-500;
+}
+
+.document-preview-viewer input:focus-visible {
+  @apply outline-2 outline-offset-2 outline-blue-500;
+}
+
+/* Print styles */
+@media print {
+  .document-preview-toolbar {
+    @apply hidden;
+  }
+  
+  .document-preview-viewer {
+    @apply h-auto;
+  }
+  
+  .document-preview-canvas {
+    @apply h-auto;
+  }
+}

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Document Viewer Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/screenfull@6.0.2/dist/screenfull.min.js"></script>
+</head>
+<body class="p-8">
+    <h1 class="text-2xl font-bold mb-4">Document Viewer Test</h1>
+    
+    <!-- Test Image Viewer -->
+    <div class="mb-8">
+        <h2 class="text-xl font-semibold mb-2">Image Test</h2>
+        <div class="h-96 border-2 border-gray-300">
+            <div class="document-preview-viewer grid grid-rows-[auto,1fr] h-full bg-gray-50 border border-gray-200 rounded-lg overflow-hidden"
+                 data-controller="document-preview--viewer"
+                 data-document-preview--viewer-file-url-value="https://via.placeholder.com/800x600/0066cc/ffffff?text=Test+Image"
+                 data-document-preview--viewer-doc-type-value="image"
+                 data-document-preview--viewer-initial-page-value="1"
+                 data-document-preview--viewer-download-name-value="test-image">
+              
+              <!-- Toolbar -->
+              <div class="document-preview-toolbar flex items-center justify-between px-4 py-2 bg-white border-b border-gray-200">
+                <div class="flex items-center space-x-2">
+                  <button data-document-preview--viewer-target="prevBtn" class="p-1 rounded hover:bg-gray-100">←</button>
+                  <span data-document-preview--viewer-target="totalPages">1</span>
+                  <button data-document-preview--viewer-target="nextBtn" class="p-1 rounded hover:bg-gray-100">→</button>
+                </div>
+                <div class="flex items-center space-x-2">
+                  <button data-action="click->document-preview--viewer#zoomOut" class="p-1 rounded hover:bg-gray-100">-</button>
+                  <span data-document-preview--viewer-target="zoomLevel">100%</span>
+                  <button data-action="click->document-preview--viewer#zoomIn" class="p-1 rounded hover:bg-gray-100">+</button>
+                  <button data-action="click->document-preview--viewer#downloadDocument" class="p-1 rounded hover:bg-gray-100">⬇</button>
+                </div>
+              </div>
+
+              <!-- Canvas/Content area -->
+              <div class="document-preview-canvas flex-1 overflow-hidden bg-gray-100 flex items-center justify-center">
+                <div data-document-preview--viewer-target="loadingIndicator" class="text-gray-500">
+                  <p class="text-sm">Chargement...</p>
+                </div>
+                
+                <div data-document-preview--viewer-target="errorMessage" class="hidden text-red-500 text-center">
+                  <p class="text-sm">Erreur lors du chargement</p>
+                </div>
+                
+                <div data-document-preview--viewer-target="imageContainer" class="hidden w-full h-full overflow-auto flex items-center justify-center">
+                  <img data-document-preview--viewer-target="imageContent" class="max-w-full max-h-full shadow-lg" alt="test-image">
+                </div>
+                
+                <div data-document-preview--viewer-target="docxContent" class="hidden w-full h-full overflow-auto p-4 bg-white"></div>
+              </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+// Simple Document Preview Controller
+class DocumentPreviewViewerController {
+  constructor(element) {
+    this.element = element
+    this.fileUrl = element.dataset.documentPreviewViewerFileUrlValue
+    this.docType = element.dataset.documentPreviewViewerDocTypeValue
+    this.initialPage = parseInt(element.dataset.documentPreviewViewerInitialPageValue) || 1
+    this.downloadName = element.dataset.documentPreviewViewerDownloadNameValue
+    
+    console.log('DocumentPreviewViewer initialized:', {
+      fileUrl: this.fileUrl,
+      docType: this.docType
+    })
+    
+    this.currentPage = this.initialPage
+    this.totalPages = 1
+    this.scale = 1.0
+
+    this.setupElements()
+    this.setupEventListeners()
+    this.loadDocument()
+  }
+
+  setupElements() {
+    this.loadingIndicator = this.element.querySelector('[data-document-preview--viewer-target="loadingIndicator"]')
+    this.errorMessage = this.element.querySelector('[data-document-preview--viewer-target="errorMessage"]')
+    this.imageContainer = this.element.querySelector('[data-document-preview--viewer-target="imageContainer"]')
+    this.imageContent = this.element.querySelector('[data-document-preview--viewer-target="imageContent"]')
+    this.docxContent = this.element.querySelector('[data-document-preview--viewer-target="docxContent"]')
+    this.totalPagesEl = this.element.querySelector('[data-document-preview--viewer-target="totalPages"]')
+    this.zoomLevel = this.element.querySelector('[data-document-preview--viewer-target="zoomLevel"]')
+  }
+
+  setupEventListeners() {
+    const downloadBtn = this.element.querySelector('[data-action*="downloadDocument"]')
+    if (downloadBtn) downloadBtn.addEventListener('click', () => this.downloadDocument())
+  }
+
+  async loadDocument() {
+    try {
+      this.showLoading()
+      console.log('Loading document:', this.docType, this.fileUrl)
+      
+      if (this.docType === 'image') {
+        await this.initImage()
+      } else {
+        this.showContent('Type: ' + this.docType)
+      }
+      
+      this.hideLoading()
+      this.updateUI()
+    } catch (error) {
+      console.error('Erreur:', error)
+      this.showError()
+    }
+  }
+
+  async initImage() {
+    console.log('Initializing Image...')
+    return new Promise((resolve, reject) => {
+      if (this.imageContent) {
+        this.imageContent.onload = () => {
+          this.showImageContainer()
+          console.log('Image loaded successfully')
+          resolve()
+        }
+        
+        this.imageContent.onerror = () => {
+          console.error('Failed to load image')
+          reject(new Error('Impossible de charger l\'image'))
+        }
+        
+        this.imageContent.src = this.fileUrl
+      } else {
+        reject(new Error('Image container not found'))
+      }
+    })
+  }
+
+  downloadDocument() {
+    const link = document.createElement('a')
+    link.href = this.fileUrl
+    link.download = this.downloadName
+    link.click()
+  }
+
+  showLoading() {
+    if (this.loadingIndicator) this.loadingIndicator.classList.remove('hidden')
+    this.hideAllContent()
+  }
+
+  hideLoading() {
+    if (this.loadingIndicator) this.loadingIndicator.classList.add('hidden')
+  }
+
+  showError() {
+    this.hideLoading()
+    this.hideAllContent()
+    if (this.errorMessage) this.errorMessage.classList.remove('hidden')
+  }
+
+  showContent(text) {
+    this.hideAllContent()
+    if (this.docxContent) {
+      this.docxContent.innerHTML = `<p class="text-center text-gray-600 p-8">${text}</p>`
+      this.docxContent.classList.remove('hidden')
+    }
+  }
+
+  showImageContainer() {
+    this.hideAllContent()
+    if (this.imageContainer) this.imageContainer.classList.remove('hidden')
+  }
+
+  hideAllContent() {
+    if (this.docxContent) this.docxContent.classList.add('hidden')
+    if (this.imageContainer) this.imageContainer.classList.add('hidden')
+    if (this.errorMessage) this.errorMessage.classList.add('hidden')
+  }
+
+  updateUI() {
+    if (this.totalPagesEl) this.totalPagesEl.textContent = this.totalPages
+    if (this.zoomLevel) this.zoomLevel.textContent = Math.round(this.scale * 100) + '%'
+  }
+}
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('DOM loaded, initializing viewers...')
+  
+  const elements = document.querySelectorAll('[data-controller="document-preview--viewer"]')
+  console.log('Found', elements.length, 'viewers')
+  
+  elements.forEach(element => {
+    new DocumentPreviewViewerController(element)
+  })
+})
+    </script>
+</body>
+</html>
