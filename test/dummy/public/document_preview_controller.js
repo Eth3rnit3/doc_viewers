@@ -111,8 +111,83 @@ class DocumentPreviewViewerController {
   }
 
   async initPDF() {
-    console.log('PDF support coming soon...')
-    this.showContent('PDF viewer will be implemented with PDF.js')
+    console.log('Initializing PDF with PDF.js...')
+    console.log('Available globals:', {
+      pdfjsLib: typeof pdfjsLib,
+      'window.pdfjsLib': typeof window.pdfjsLib,
+      'window.pdfjs': typeof window.pdfjs
+    })
+    
+    try {
+      // Attendre que PDF.js soit chargé
+      let pdfLib = window.pdfjsLib || window.pdfjs || (typeof pdfjsLib !== 'undefined' ? pdfjsLib : null)
+      
+      // Si pas encore chargé, attendre un peu
+      if (!pdfLib) {
+        console.log('PDF.js not ready, waiting...')
+        await new Promise(resolve => setTimeout(resolve, 500))
+        pdfLib = window.pdfjsLib || window.pdfjs || (typeof pdfjsLib !== 'undefined' ? pdfjsLib : null)
+      }
+      
+      if (!pdfLib) {
+        throw new Error('PDF.js library not loaded after waiting - check browser console for script errors')
+      }
+      
+      console.log('PDF.js library found:', pdfLib)
+
+      // PDF.js est déjà configuré dans le HTML
+      
+      // Charger le document PDF
+      const loadingTask = pdfLib.getDocument(this.fileUrl)
+      this.pdfDocument = await loadingTask.promise
+      this.totalPages = this.pdfDocument.numPages
+      
+      console.log(`PDF loaded: ${this.totalPages} pages`)
+      
+      // Rendre la première page
+      await this.renderPDFPage()
+      this.showPDFCanvas()
+      
+    } catch (error) {
+      console.error('Error loading PDF:', error)
+      this.showContent(`Error loading PDF: ${error.message}`)
+    }
+  }
+
+  async renderPDFPage() {
+    if (!this.pdfDocument) return
+    
+    try {
+      const page = await this.pdfDocument.getPage(this.currentPage)
+      const viewport = page.getViewport({ scale: this.scale })
+      
+      const canvas = this.element.querySelector('[data-document-preview--viewer-target="pdfCanvas"]')
+      if (!canvas) {
+        throw new Error('PDF canvas not found')
+      }
+      
+      const context = canvas.getContext('2d')
+      canvas.height = viewport.height
+      canvas.width = viewport.width
+      
+      const renderContext = {
+        canvasContext: context,
+        viewport: viewport
+      }
+      
+      await page.render(renderContext).promise
+      console.log(`PDF page ${this.currentPage} rendered`)
+      
+    } catch (error) {
+      console.error('Error rendering PDF page:', error)
+      throw error
+    }
+  }
+
+  showPDFCanvas() {
+    this.hideAllContent()
+    const canvas = this.element.querySelector('[data-document-preview--viewer-target="pdfCanvas"]')
+    if (canvas) canvas.classList.remove('hidden')
   }
 
   async initDOCX() {
@@ -121,43 +196,54 @@ class DocumentPreviewViewerController {
   }
 
   // Navigation
-  previousPage() {
+  async previousPage() {
     if (this.currentPage > 1) {
       this.currentPage--
+      await this.renderCurrentPage()
       this.updateUI()
     }
   }
 
-  nextPage() {
+  async nextPage() {
     if (this.currentPage < this.totalPages) {
       this.currentPage++
+      await this.renderCurrentPage()
       this.updateUI()
     }
   }
 
-  goToPage() {
+  async goToPage() {
     const pageNumber = parseInt(this.pageInput.value)
     if (pageNumber >= 1 && pageNumber <= this.totalPages) {
       this.currentPage = pageNumber
+      await this.renderCurrentPage()
       this.updateUI()
+    }
+  }
+
+  async renderCurrentPage() {
+    if (this.docType === 'pdf' && this.pdfDocument) {
+      await this.renderPDFPage()
     }
   }
 
   // Zoom
-  zoomIn() {
+  async zoomIn() {
     this.scale = Math.min(this.scale + 0.25, 3.0)
-    this.applyZoom()
+    await this.applyZoom()
     this.updateUI()
   }
 
-  zoomOut() {
+  async zoomOut() {
     this.scale = Math.max(this.scale - 0.25, 0.25)
-    this.applyZoom()
+    await this.applyZoom()
     this.updateUI()
   }
 
-  applyZoom() {
-    if (this.imageContent) {
+  async applyZoom() {
+    if (this.docType === 'pdf' && this.pdfDocument) {
+      await this.renderPDFPage()
+    } else if (this.imageContent) {
       this.imageContent.style.transform = `scale(${this.scale})`
     }
   }
@@ -211,6 +297,8 @@ class DocumentPreviewViewerController {
   }
 
   hideAllContent() {
+    const pdfCanvas = this.element.querySelector('[data-document-preview--viewer-target="pdfCanvas"]')
+    if (pdfCanvas) pdfCanvas.classList.add('hidden')
     if (this.docxContent) this.docxContent.classList.add('hidden')
     if (this.imageContainer) this.imageContainer.classList.add('hidden')
     if (this.errorMessage) this.errorMessage.classList.add('hidden')

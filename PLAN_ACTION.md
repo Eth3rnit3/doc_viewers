@@ -142,7 +142,11 @@ app/
 - [x] **TERMINÉ :** Corriger erreurs 404 assets CSS/JS
 - [x] **TERMINÉ :** Tester visualisation d'images
 - [x] **TERMINÉ :** Interface complète fonctionnelle avec zoom, navigation, download
-- [ ] **EN COURS :** Implémenter support PDF complet avec PDF.js
+- [x] **TERMINÉ :** Implémenter support PDF complet avec PDF.js
+  - Chargement PDF avec PDF.js 4.x
+  - Navigation multi-pages avec rendu canvas
+  - Zoom dynamique avec re-rendu
+  - Gestion d'erreurs et debug logs
 - [ ] Implémenter support DOCX avec Mammoth.js
 - [ ] Tests RSpec complets
 

@@ -25,8 +25,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- PDF.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf.min.mjs" type="module"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf.worker.min.mjs" type="module"></script>
+    <script src="https://mozilla.github.io/pdf.js/build/pdf.mjs" type="module"></script>
+    <script type="module">
+      import * as pdfjsLib from 'https://mozilla.github.io/pdf.js/build/pdf.mjs';
+      window.pdfjsLib = pdfjsLib;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://mozilla.github.io/pdf.js/build/pdf.worker.mjs';
+      console.log('PDF.js loaded and configured:', window.pdfjsLib);
+    </script>
     
     <!-- Mammoth.js for DOCX -->
     <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
