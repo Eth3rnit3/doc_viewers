@@ -7,11 +7,28 @@ class DocumentPreviewViewerController {
     this.initialPage = parseInt(element.dataset.documentPreviewViewerInitialPageValue || element.getAttribute('data-document-preview--viewer-initial-page-value')) || 1
     this.downloadName = element.dataset.documentPreviewViewerDownloadNameValue || element.getAttribute('data-document-preview--viewer-download-name-value')
     
+    // Support pour les collections d'images
+    const imageUrlsAttr = element.dataset.documentPreviewViewerImageUrlsValue || element.getAttribute('data-document-preview--viewer-image-urls-value')
+    this.imageUrls = null
+    
+    if (imageUrlsAttr) {
+      try {
+        // Décoder les entités HTML d'abord
+        const decodedJson = imageUrlsAttr.replace(/&quot;/g, '"').replace(/&amp;/g, '&')
+        this.imageUrls = JSON.parse(decodedJson)
+        console.log('Image URLs parsed successfully:', this.imageUrls)
+      } catch (error) {
+        console.error('Error parsing image URLs:', error, 'Raw value:', imageUrlsAttr)
+        this.imageUrls = null
+      }
+    }
+    
     console.log('DocumentPreviewViewer initialized:', {
       fileUrl: this.fileUrl,
       docType: this.docType,
       initialPage: this.initialPage,
-      downloadName: this.downloadName
+      downloadName: this.downloadName,
+      imageUrls: this.imageUrls
     })
     
     // Debug: log all data attributes
@@ -68,6 +85,7 @@ class DocumentPreviewViewerController {
       
       switch(this.docType) {
         case 'image':
+        case 'images':
           await this.initImage()
           break
         case 'pdf':
@@ -89,21 +107,38 @@ class DocumentPreviewViewerController {
   }
 
   async initImage() {
-    console.log('Initializing Image...')
+    console.log('Initializing Image(s)...')
+    
+    // Si c'est une collection d'images
+    if (this.imageUrls && this.imageUrls.length > 0) {
+      console.log(`Initializing image collection with ${this.imageUrls.length} images`)
+      this.totalPages = this.imageUrls.length
+      
+      // Charger la première image (ou l'image de la page initiale)
+      const currentImageUrl = this.imageUrls[this.currentPage - 1]
+      return this.loadSingleImage(currentImageUrl)
+    } else {
+      // Image unique
+      this.totalPages = 1
+      return this.loadSingleImage(this.fileUrl)
+    }
+  }
+
+  async loadSingleImage(imageUrl) {
     return new Promise((resolve, reject) => {
       if (this.imageContent) {
         this.imageContent.onload = () => {
           this.showImageContainer()
-          console.log('Image loaded successfully')
+          console.log('Image loaded successfully:', imageUrl)
           resolve()
         }
         
         this.imageContent.onerror = () => {
-          console.error('Failed to load image')
-          reject(new Error('Failed to load image'))
+          console.error('Failed to load image:', imageUrl)
+          reject(new Error(`Failed to load image: ${imageUrl}`))
         }
         
-        this.imageContent.src = this.fileUrl
+        this.imageContent.src = imageUrl
       } else {
         reject(new Error('Image container not found'))
       }
@@ -224,6 +259,11 @@ class DocumentPreviewViewerController {
   async renderCurrentPage() {
     if (this.docType === 'pdf' && this.pdfDocument) {
       await this.renderPDFPage()
+    } else if ((this.docType === 'images' || this.docType === 'image') && this.imageUrls && this.imageUrls.length > 0) {
+      const currentImageUrl = this.imageUrls[this.currentPage - 1]
+      if (currentImageUrl) {
+        await this.loadSingleImage(currentImageUrl)
+      }
     }
   }
 

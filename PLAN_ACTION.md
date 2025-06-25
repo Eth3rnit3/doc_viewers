@@ -147,6 +147,12 @@ app/
   - Navigation multi-pages avec rendu canvas
   - Zoom dynamique avec re-rendu
   - Gestion d'erreurs et debug logs
+- [x] **TERMINÉ :** Support collections d'images multi-pages ✅
+  - Helper `document_preview_from_images(urls_array)`
+  - Navigation entre images comme pages de document
+  - Support images unique et collections
+  - Interface unifiée pour tous types de contenus
+  - **CORRIGÉ :** Problème de parsing JSON avec entités HTML (Fix décodage HTML)
 - [ ] Implémenter support DOCX avec Mammoth.js
 - [ ] Tests RSpec complets
 

@@ -1,7 +1,7 @@
 <div class="container mx-auto px-4 py-8">
   <h1 class="text-3xl font-bold mb-8">Document Preview Engine Demo</h1>
   
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     <!-- PDF Preview -->
     <div class="space-y-4">
       <h2 class="text-xl font-semibold">PDF Preview</h2>
@@ -10,11 +10,19 @@
       </div>
     </div>
     
-    <!-- Image Preview -->
+    <!-- Single Image Preview -->
     <div class="space-y-4">
-      <h2 class="text-xl font-semibold">Image Preview</h2>
+      <h2 class="text-xl font-semibold">Single Image</h2>
       <div class="h-96">
         <%= document_preview_from_url(@image_url, doc_type: "image") %>
+      </div>
+    </div>
+    
+    <!-- Images Collection Preview -->
+    <div class="space-y-4">
+      <h2 class="text-xl font-semibold">Images Collection</h2>
+      <div class="h-96">
+        <%= document_preview_from_images(@image_collection, download_name: "collection-demo") %>
       </div>
     </div>
   </div>
@@ -32,6 +40,13 @@
       <h3 class="font-medium mb-2">With URL:</h3>
       <code class="text-sm">
         &lt;%= document_preview_from_url "https://example.com/document.pdf" %&gt;
+      </code>
+    </div>
+    
+    <div class="bg-gray-100 p-4 rounded-lg">
+      <h3 class="font-medium mb-2">With Images Collection:</h3>
+      <code class="text-sm">
+        &lt;%= document_preview_from_images ["page1.jpg", "page2.jpg", "page3.jpg"] %&gt;
       </code>
     </div>
   </div>

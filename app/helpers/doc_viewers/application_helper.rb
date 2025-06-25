@@ -31,7 +31,22 @@ module DocViewers
                file_url: file_url,
                doc_type: doc_type,
                download_name: download_name,
-               initial_page: initial_page
+               initial_page: initial_page,
+               image_urls: nil
+             }
+    end
+
+    def document_preview_from_images(image_urls, **options)
+      download_name = options[:download_name] || "images-collection"
+      initial_page = options[:initial_page] || 1
+
+      render partial: "doc_viewers/shared/document_viewer",
+             locals: {
+               file_url: image_urls.is_a?(Array) ? image_urls.first : image_urls,
+               doc_type: "images",
+               download_name: download_name,
+               initial_page: initial_page,
+               image_urls: image_urls.is_a?(Array) ? image_urls : [image_urls]
              }
     end
 

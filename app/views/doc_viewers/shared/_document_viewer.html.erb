@@ -3,7 +3,8 @@
      data-document-preview--viewer-file-url-value="<%= file_url %>"
      data-document-preview--viewer-doc-type-value="<%= doc_type %>"
      data-document-preview--viewer-initial-page-value="<%= initial_page %>"
-     data-document-preview--viewer-download-name-value="<%= download_name %>">
+     data-document-preview--viewer-download-name-value="<%= download_name %>"
+     <% if defined?(image_urls) && image_urls %>data-document-preview--viewer-image-urls-value='<%= image_urls.to_json %>'<% end %>>
   
   <!-- Toolbar -->
   <div class="document-preview-toolbar flex items-center justify-between px-4 py-2 bg-white border-b border-gray-200 shadow-sm backdrop-blur-sm">
