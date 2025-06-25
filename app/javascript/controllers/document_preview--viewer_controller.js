@@ -1,240 +1,264 @@
-// Simple Document Preview Controller
-class DocumentPreviewViewerController {
-  constructor(element) {
-    this.element = element
-    this.fileUrl = element.dataset.documentPreviewViewerFileUrlValue
-    this.docType = element.dataset.documentPreviewViewerDocTypeValue
-    this.initialPage = parseInt(element.dataset.documentPreviewViewerInitialPageValue) || 1
-    this.downloadName = element.dataset.documentPreviewViewerDownloadNameValue
-    
-    console.log('DocumentPreviewViewer initialized:', {
-      fileUrl: this.fileUrl,
-      docType: this.docType,
-      initialPage: this.initialPage,
-      downloadName: this.downloadName
-    })
-    
-    this.currentPage = this.initialPage
+import { Controller } from "@hotwired/stimulus"
+
+export default class extends Controller {
+  static targets = [
+    "loadingIndicator", "errorMessage", "pdfCanvas", "docxContent", 
+    "imageContainer", "imageContent", "prevBtn", "nextBtn", 
+    "pageInput", "totalPages", "zoomLevel"
+  ]
+
+  static values = {
+    fileUrl: String,
+    docType: String,
+    initialPage: Number,
+    downloadName: String,
+    imageUrls: Array
+  }
+
+  connect() {
+    this.currentPage = this.initialPageValue || 1
     this.totalPages = 1
     this.scale = 1.0
-    this.minScale = 0.25
-    this.maxScale = 5.0
-    this.scaleStep = 0.25
-
-    this.setupElements()
-    this.setupEventListeners()
+    this.pdfDocument = null
+    
     this.loadDocument()
-  }
-
-  setupElements() {
-    this.loadingIndicator = this.element.querySelector('[data-document-preview--viewer-target="loadingIndicator"]')
-    this.errorMessage = this.element.querySelector('[data-document-preview--viewer-target="errorMessage"]')
-    this.pdfCanvas = this.element.querySelector('[data-document-preview--viewer-target="pdfCanvas"]')
-    this.docxContent = this.element.querySelector('[data-document-preview--viewer-target="docxContent"]')
-    this.imageContainer = this.element.querySelector('[data-document-preview--viewer-target="imageContainer"]')
-    this.imageContent = this.element.querySelector('[data-document-preview--viewer-target="imageContent"]')
-    this.prevBtn = this.element.querySelector('[data-document-preview--viewer-target="prevBtn"]')
-    this.nextBtn = this.element.querySelector('[data-document-preview--viewer-target="nextBtn"]')
-    this.pageInput = this.element.querySelector('[data-document-preview--viewer-target="pageInput"]')
-    this.totalPagesEl = this.element.querySelector('[data-document-preview--viewer-target="totalPages"]')
-    this.zoomLevel = this.element.querySelector('[data-document-preview--viewer-target="zoomLevel"]')
-  }
-
-  setupEventListeners() {
-    // Navigation buttons
-    if (this.prevBtn) {
-      this.prevBtn.addEventListener('click', () => this.previousPage())
-    }
-    if (this.nextBtn) {
-      this.nextBtn.addEventListener('click', () => this.nextPage())
-    }
-    
-    // Page input
-    if (this.pageInput) {
-      this.pageInput.addEventListener('change', () => this.goToPage())
-    }
-    
-    // Zoom buttons
-    const zoomInBtn = this.element.querySelector('[data-action*="zoomIn"]')
-    const zoomOutBtn = this.element.querySelector('[data-action*="zoomOut"]')
-    const fullscreenBtn = this.element.querySelector('[data-action*="toggleFullscreen"]')
-    const downloadBtn = this.element.querySelector('[data-action*="downloadDocument"]')
-    
-    if (zoomInBtn) zoomInBtn.addEventListener('click', () => this.zoomIn())
-    if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => this.zoomOut())
-    if (fullscreenBtn) fullscreenBtn.addEventListener('click', () => this.toggleFullscreen())
-    if (downloadBtn) downloadBtn.addEventListener('click', () => this.downloadDocument())
   }
 
   async loadDocument() {
     try {
       this.showLoading()
-      console.log('Loading document:', this.docType, this.fileUrl)
-      
-      switch(this.docType) {
-        case 'pdf':
-          await this.initPDF()
-          break
-        case 'image':
-          await this.initImage()
-          break
-        case 'docx':
-          await this.initDOCX()
-          break
-        default:
-          throw new Error(`Type de document non supporté: ${this.docType}`)
-      }
-      
+      await this.initializeDocumentType()
       this.hideLoading()
       this.updateUI()
     } catch (error) {
-      console.error('Erreur lors du chargement du document:', error)
       this.showError()
     }
   }
 
-  async initPDF() {
-    console.log('Initializing PDF...')
-    // Simple PDF implementation for now
-    this.totalPages = 1
-    this.showContent('PDF content will load here: ' + this.fileUrl)
+  async initializeDocumentType() {
+    switch(this.docTypeValue) {
+      case 'image':
+      case 'images':
+        await this.initializeImages()
+        break
+      case 'pdf':
+        await this.initializePDF()
+        break
+      case 'docx':
+        await this.initializeDOCX()
+        break
+    }
   }
 
-  async initImage() {
-    console.log('Initializing Image...')
+  async initializeImages() {
+    if (this.hasImageUrlsValue && this.imageUrlsValue.length > 0) {
+      this.totalPages = this.imageUrlsValue.length
+      const currentImageUrl = this.imageUrlsValue[this.currentPage - 1]
+      await this.loadSingleImage(currentImageUrl)
+    } else {
+      this.totalPages = 1
+      await this.loadSingleImage(this.fileUrlValue)
+    }
+  }
+
+  async loadSingleImage(imageUrl) {
     return new Promise((resolve, reject) => {
-      if (this.imageContent) {
-        this.imageContent.onload = () => {
-          this.showImageContainer()
-          this.totalPages = 1
-          resolve()
-        }
-        
-        this.imageContent.onerror = () => {
-          reject(new Error('Impossible de charger l\'image'))
-        }
-        
-        this.imageContent.src = this.fileUrl
-      } else {
+      if (!this.hasImageContentTarget) {
         reject(new Error('Image container not found'))
+        return
       }
+
+      this.imageContentTarget.onload = () => {
+        this.showImageContainer()
+        resolve()
+      }
+
+      this.imageContentTarget.onerror = () => {
+        reject(new Error(`Failed to load image: ${imageUrl}`))
+      }
+
+      this.imageContentTarget.src = imageUrl
     })
   }
 
-  async initDOCX() {
-    console.log('Initializing DOCX...')
-    this.totalPages = 1
-    this.showContent('DOCX content will load here: ' + this.fileUrl)
+  async initializePDF() {
+    try {
+      const pdfLib = await this.waitForPDFLib()
+      if (!pdfLib) {
+        throw new Error('PDF.js library not loaded')
+      }
+
+      const loadingTask = pdfLib.getDocument(this.fileUrlValue)
+      this.pdfDocument = await loadingTask.promise
+      this.totalPages = this.pdfDocument.numPages
+
+      await this.renderPDFPage()
+      this.showPDFCanvas()
+    } catch (error) {
+      this.showContent(`Error loading PDF: ${error.message}`)
+    }
   }
 
-  // Navigation methods
-  previousPage() {
+  async waitForPDFLib() {
+    let pdfLib = window.pdfjsLib || window.pdfjs
+    
+    if (!pdfLib) {
+      await new Promise(resolve => setTimeout(resolve, 500))
+      pdfLib = window.pdfjsLib || window.pdfjs
+    }
+    
+    return pdfLib
+  }
+
+  async renderPDFPage() {
+    if (!this.pdfDocument || !this.hasPdfCanvasTarget) return
+
+    const page = await this.pdfDocument.getPage(this.currentPage)
+    const viewport = page.getViewport({ scale: this.scale })
+
+    const context = this.pdfCanvasTarget.getContext('2d')
+    this.pdfCanvasTarget.height = viewport.height
+    this.pdfCanvasTarget.width = viewport.width
+
+    const renderContext = {
+      canvasContext: context,
+      viewport: viewport
+    }
+
+    await page.render(renderContext).promise
+  }
+
+  async initializeDOCX() {
+    this.showContent('DOCX viewer will be implemented with Mammoth.js')
+  }
+
+  async previousPage() {
     if (this.currentPage > 1) {
       this.currentPage--
+      await this.renderCurrentPage()
       this.updateUI()
     }
   }
 
-  nextPage() {
+  async nextPage() {
     if (this.currentPage < this.totalPages) {
       this.currentPage++
+      await this.renderCurrentPage()
       this.updateUI()
     }
   }
 
-  goToPage() {
-    const pageNumber = parseInt(this.pageInput.value)
+  async goToPage() {
+    const pageNumber = parseInt(this.pageInputTarget.value)
     if (pageNumber >= 1 && pageNumber <= this.totalPages) {
       this.currentPage = pageNumber
+      await this.renderCurrentPage()
       this.updateUI()
     }
   }
 
-  // Zoom methods
-  zoomIn() {
-    if (this.scale < this.maxScale) {
-      this.scale = Math.min(this.scale + this.scaleStep, this.maxScale)
-      this.updateUI()
+  async renderCurrentPage() {
+    if (this.docTypeValue === 'pdf' && this.pdfDocument) {
+      await this.renderPDFPage()
+    } else if (this.isImageType() && this.hasImageUrlsValue && this.imageUrlsValue.length > 0) {
+      const currentImageUrl = this.imageUrlsValue[this.currentPage - 1]
+      if (currentImageUrl) {
+        await this.loadSingleImage(currentImageUrl)
+      }
     }
   }
 
-  zoomOut() {
-    if (this.scale > this.minScale) {
-      this.scale = Math.max(this.scale - this.scaleStep, this.minScale)
-      this.updateUI()
+  isImageType() {
+    return this.docTypeValue === 'images' || this.docTypeValue === 'image'
+  }
+
+  async zoomIn() {
+    this.scale = Math.min(this.scale + 0.25, 3.0)
+    await this.applyZoom()
+    this.updateUI()
+  }
+
+  async zoomOut() {
+    this.scale = Math.max(this.scale - 0.25, 0.25)
+    await this.applyZoom()
+    this.updateUI()
+  }
+
+  async applyZoom() {
+    if (this.docTypeValue === 'pdf' && this.pdfDocument) {
+      await this.renderPDFPage()
+    } else if (this.hasImageContentTarget) {
+      this.imageContentTarget.style.transform = `scale(${this.scale})`
     }
   }
 
   toggleFullscreen() {
-    console.log('Toggle fullscreen')
-    // Fullscreen implementation will be added later
+    if (typeof screenfull !== 'undefined' && screenfull.isEnabled) {
+      if (screenfull.isFullscreen) {
+        screenfull.exit()
+      } else {
+        screenfull.request(this.element)
+      }
+    }
   }
 
   downloadDocument() {
     const link = document.createElement('a')
-    link.href = this.fileUrl
-    link.download = this.downloadName
+    link.href = this.fileUrlValue
+    link.download = this.downloadNameValue || 'document'
     link.click()
   }
 
-  // UI State management
   showLoading() {
-    if (this.loadingIndicator) this.loadingIndicator.classList.remove('hidden')
+    if (this.hasLoadingIndicatorTarget) this.loadingIndicatorTarget.classList.remove('hidden')
     this.hideAllContent()
   }
 
   hideLoading() {
-    if (this.loadingIndicator) this.loadingIndicator.classList.add('hidden')
+    if (this.hasLoadingIndicatorTarget) this.loadingIndicatorTarget.classList.add('hidden')
   }
 
   showError() {
     this.hideLoading()
     this.hideAllContent()
-    if (this.errorMessage) this.errorMessage.classList.remove('hidden')
+    if (this.hasErrorMessageTarget) this.errorMessageTarget.classList.remove('hidden')
   }
 
   showContent(text) {
     this.hideAllContent()
-    if (this.docxContent) {
-      this.docxContent.innerHTML = `<p class="text-center text-gray-600 p-8">${text}</p>`
-      this.docxContent.classList.remove('hidden')
+    if (this.hasDocxContentTarget) {
+      this.docxContentTarget.innerHTML = `<p class="text-center text-gray-600 p-8">${text}</p>`
+      this.docxContentTarget.classList.remove('hidden')
     }
   }
 
   showImageContainer() {
     this.hideAllContent()
-    if (this.imageContainer) this.imageContainer.classList.remove('hidden')
+    if (this.hasImageContainerTarget) this.imageContainerTarget.classList.remove('hidden')
+  }
+
+  showPDFCanvas() {
+    this.hideAllContent()
+    if (this.hasPdfCanvasTarget) this.pdfCanvasTarget.classList.remove('hidden')
   }
 
   hideAllContent() {
-    if (this.pdfCanvas) this.pdfCanvas.classList.add('hidden')
-    if (this.docxContent) this.docxContent.classList.add('hidden')
-    if (this.imageContainer) this.imageContainer.classList.add('hidden')
-    if (this.errorMessage) this.errorMessage.classList.add('hidden')
+    const targets = ['pdfCanvas', 'docxContent', 'imageContainer', 'errorMessage']
+    targets.forEach(targetName => {
+      const hasMethod = `has${targetName.charAt(0).toUpperCase() + targetName.slice(1)}Target`
+      const targetProperty = `${targetName}Target`
+      if (this[hasMethod] && this[targetProperty]) {
+        this[targetProperty].classList.add('hidden')
+      }
+    })
   }
 
   updateUI() {
-    // Update page info
-    if (this.pageInput) this.pageInput.value = this.currentPage
-    if (this.totalPagesEl) this.totalPagesEl.textContent = this.totalPages
+    if (this.hasPageInputTarget) this.pageInputTarget.value = this.currentPage
+    if (this.hasTotalPagesTarget) this.totalPagesTarget.textContent = this.totalPages
+    if (this.hasZoomLevelTarget) this.zoomLevelTarget.textContent = Math.round(this.scale * 100) + '%'
 
-    // Update navigation buttons
-    if (this.prevBtn) this.prevBtn.disabled = this.currentPage <= 1
-    if (this.nextBtn) this.nextBtn.disabled = this.currentPage >= this.totalPages
-
-    // Update zoom level
-    if (this.zoomLevel) this.zoomLevel.textContent = Math.round(this.scale * 100) + '%'
+    if (this.hasPrevBtnTarget) this.prevBtnTarget.disabled = this.currentPage <= 1
+    if (this.hasNextBtnTarget) this.nextBtnTarget.disabled = this.currentPage >= this.totalPages
   }
 }
-
-// Initialize controllers when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('Initializing document preview controllers...')
-  
-  const elements = document.querySelectorAll('[data-controller="document-preview--viewer"]')
-  console.log('Found', elements.length, 'document preview elements')
-  
-  elements.forEach(element => {
-    new DocumentPreviewViewerController(element)
-  })
-})

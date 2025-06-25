@@ -13,4 +13,5 @@ class PreviewController < ApplicationController
       "https://placehold.co/600x400/6c5ce7/ffffff?text=Page+5"
     ]
   end
+
 end

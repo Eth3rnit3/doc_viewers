@@ -158,15 +158,23 @@ app/
 
 ## État Actuel 🎉
 
-### ✅ Fonctionnel
-- **Interface complète** avec toolbar responsive Tailwind CSS
-- **Visualisation d'images** avec zoom, navigation, téléchargement
-- **Helper plug-and-play** : `document_preview_from_url(url, options)`
-- **Architecture propre** : Engine Rails mountable + Stimulus + CSS
+### ✅ Engine Totalement Autonome
+- **Architecture self-contained** : JavaScript intégré dans le template de l'engine
+- **Aucune dépendance externe** : Toute la logique dans l'engine
+- **Helper plug-and-play** : `document_preview_from_url()` et `document_preview_from_images()`
+- **Controller Stimulus propre** avec targets et values
 - **Demo live** : http://localhost:3000/preview
 
-### 🚀 Composants Créés
-- `DocumentPreviewViewerController` JavaScript avec gestion complète
-- Partial `_document_viewer.html.erb` avec interface responsive
-- Styles CSS avec animations et responsive design
-- Helper Rails avec détection automatique de type
+### 🚀 Fonctionnalités Complètes
+- **PDF Support** : Visualisation avec PDF.js 4.x, navigation multi-pages, zoom
+- **Images Support** : Images uniques et collections multi-pages
+- **Interface unifiée** : Même UX pour tous types de documents
+- **Navigation complète** : Précédent/Suivant, zoom, fullscreen, téléchargement
+- **Parsing JSON robuste** : Gestion des entités HTML pour les collections d'images
+
+### 🏗️ Architecture Technique
+- **Engine Rails mountable** avec namespace isolé
+- **Stimulus Controller inline** dans le template (totalement autonome)
+- **Tailwind CSS** pour styling responsive
+- **Helper Rails** avec détection automatique de type
+- **Support collections** : Navigation multi-pages pour images

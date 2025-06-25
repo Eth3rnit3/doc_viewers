@@ -120,3 +120,336 @@
     </div>
   </div>
 </div>
+
+<script type="module">
+  // Only define the controller once globally
+  if (!window.DocumentPreviewViewerController) {
+    const { Controller } = await import("https://unpkg.com/@hotwired/stimulus@3.2.2/dist/stimulus.js")
+    
+    window.DocumentPreviewViewerController = class extends Controller {
+      static targets = [
+        "loadingIndicator", "errorMessage", "pdfCanvas", "docxContent", 
+        "imageContainer", "imageContent", "prevBtn", "nextBtn", 
+        "pageInput", "totalPages", "zoomLevel"
+      ]
+
+      static values = {
+        fileUrl: String,
+        docType: String,
+        initialPage: Number,
+        downloadName: String,
+        imageUrls: Array
+      }
+
+      connect() {
+        this.currentPage = this.initialPageValue || 1
+        this.totalPages = 1
+        this.scale = 1.0
+        this.pdfDocument = null
+        this.renderTask = null
+        this.renderPending = false
+        
+        // Create a unique canvas ID for this instance
+        this.canvasId = `pdf-canvas-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        
+        this.loadDocument()
+      }
+
+      disconnect() {
+        // Clean up any ongoing render task
+        if (this.renderTask) {
+          this.renderTask.cancel()
+          this.renderTask = null
+        }
+      }
+
+      async loadDocument() {
+        try {
+          this.showLoading()
+          await this.initializeDocumentType()
+          this.hideLoading()
+          this.updateUI()
+        } catch (error) {
+          this.showError()
+        }
+      }
+
+      async initializeDocumentType() {
+        switch(this.docTypeValue) {
+          case 'image':
+          case 'images':
+            await this.initializeImages()
+            break
+          case 'pdf':
+            await this.initializePDF()
+            break
+          case 'docx':
+            await this.initializeDOCX()
+            break
+        }
+      }
+
+      async initializeImages() {
+        if (this.hasImageUrlsValue && this.imageUrlsValue.length > 0) {
+          this.totalPages = this.imageUrlsValue.length
+          const currentImageUrl = this.imageUrlsValue[this.currentPage - 1]
+          await this.loadSingleImage(currentImageUrl)
+        } else {
+          this.totalPages = 1
+          await this.loadSingleImage(this.fileUrlValue)
+        }
+      }
+
+      async loadSingleImage(imageUrl) {
+        return new Promise((resolve, reject) => {
+          if (!this.hasImageContentTarget) {
+            reject(new Error('Image container not found'))
+            return
+          }
+
+          this.imageContentTarget.onload = () => {
+            this.showImageContainer()
+            resolve()
+          }
+
+          this.imageContentTarget.onerror = () => {
+            reject(new Error(`Failed to load image: ${imageUrl}`))
+          }
+
+          this.imageContentTarget.src = imageUrl
+        })
+      }
+
+      async initializePDF() {
+        try {
+          const pdfLib = await this.waitForPDFLib()
+          if (!pdfLib) {
+            throw new Error('PDF.js library not loaded')
+          }
+
+          const loadingTask = pdfLib.getDocument(this.fileUrlValue)
+          this.pdfDocument = await loadingTask.promise
+          this.totalPages = this.pdfDocument.numPages
+
+          await this.renderPDFPage()
+          this.showPDFCanvas()
+        } catch (error) {
+          this.showContent(`Error loading PDF: ${error.message}`)
+        }
+      }
+
+      async waitForPDFLib() {
+        let pdfLib = window.pdfjsLib || window.pdfjs
+        
+        if (!pdfLib) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+          pdfLib = window.pdfjsLib || window.pdfjs
+        }
+        
+        return pdfLib
+      }
+
+      async renderPDFPage() {
+        if (!this.pdfDocument || !this.hasPdfCanvasTarget) return
+
+        // Prevent multiple concurrent renders
+        if (this.renderPending) {
+          return
+        }
+        
+        this.renderPending = true
+
+        try {
+          // Cancel any existing render task
+          if (this.renderTask) {
+            this.renderTask.cancel()
+            try {
+              await this.renderTask.promise
+            } catch (e) {
+              // Ignore cancellation errors
+            }
+            this.renderTask = null
+          }
+
+          const page = await this.pdfDocument.getPage(this.currentPage)
+          const viewport = page.getViewport({ scale: this.scale })
+
+          // Create a completely new canvas element for this render
+          const newCanvas = document.createElement('canvas')
+          newCanvas.width = viewport.width
+          newCanvas.height = viewport.height
+          newCanvas.className = this.pdfCanvasTarget.className
+
+          // Replace the old canvas with the new one
+          this.pdfCanvasTarget.parentNode.replaceChild(newCanvas, this.pdfCanvasTarget)
+          
+          // Update the target reference
+          newCanvas.setAttribute('data-document-preview--viewer-target', 'pdfCanvas')
+          
+          const context = newCanvas.getContext('2d')
+
+          const renderContext = {
+            canvasContext: context,
+            viewport: viewport
+          }
+
+          this.renderTask = page.render(renderContext)
+          await this.renderTask.promise
+          this.renderTask = null
+          
+        } catch (error) {
+          this.renderTask = null
+          if (error.name !== 'RenderingCancelledException') {
+            console.warn('PDF render error:', error)
+          }
+        } finally {
+          this.renderPending = false
+        }
+      }
+
+      async initializeDOCX() {
+        this.showContent('DOCX viewer will be implemented with Mammoth.js')
+      }
+
+      async previousPage() {
+        if (this.currentPage > 1) {
+          this.currentPage--
+          await this.renderCurrentPage()
+          this.updateUI()
+        }
+      }
+
+      async nextPage() {
+        if (this.currentPage < this.totalPages) {
+          this.currentPage++
+          await this.renderCurrentPage()
+          this.updateUI()
+        }
+      }
+
+      async goToPage() {
+        const pageNumber = parseInt(this.pageInputTarget.value)
+        if (pageNumber >= 1 && pageNumber <= this.totalPages) {
+          this.currentPage = pageNumber
+          await this.renderCurrentPage()
+          this.updateUI()
+        }
+      }
+
+      async renderCurrentPage() {
+        if (this.docTypeValue === 'pdf' && this.pdfDocument) {
+          await this.renderPDFPage()
+        } else if (this.isImageType() && this.hasImageUrlsValue && this.imageUrlsValue.length > 0) {
+          const currentImageUrl = this.imageUrlsValue[this.currentPage - 1]
+          if (currentImageUrl) {
+            await this.loadSingleImage(currentImageUrl)
+          }
+        }
+      }
+
+      isImageType() {
+        return this.docTypeValue === 'images' || this.docTypeValue === 'image'
+      }
+
+      async zoomIn() {
+        this.scale = Math.min(this.scale + 0.25, 3.0)
+        await this.applyZoom()
+        this.updateUI()
+      }
+
+      async zoomOut() {
+        this.scale = Math.max(this.scale - 0.25, 0.25)
+        await this.applyZoom()
+        this.updateUI()
+      }
+
+      async applyZoom() {
+        if (this.docTypeValue === 'pdf' && this.pdfDocument) {
+          await this.renderPDFPage()
+        } else if (this.hasImageContentTarget) {
+          this.imageContentTarget.style.transform = `scale(${this.scale})`
+        }
+      }
+
+      toggleFullscreen() {
+        if (typeof screenfull !== 'undefined' && screenfull.isEnabled) {
+          if (screenfull.isFullscreen) {
+            screenfull.exit()
+          } else {
+            screenfull.request(this.element)
+          }
+        }
+      }
+
+      downloadDocument() {
+        const link = document.createElement('a')
+        link.href = this.fileUrlValue
+        link.download = this.downloadNameValue || 'document'
+        link.click()
+      }
+
+      showLoading() {
+        if (this.hasLoadingIndicatorTarget) this.loadingIndicatorTarget.classList.remove('hidden')
+        this.hideAllContent()
+      }
+
+      hideLoading() {
+        if (this.hasLoadingIndicatorTarget) this.loadingIndicatorTarget.classList.add('hidden')
+      }
+
+      showError() {
+        this.hideLoading()
+        this.hideAllContent()
+        if (this.hasErrorMessageTarget) this.errorMessageTarget.classList.remove('hidden')
+      }
+
+      showContent(text) {
+        this.hideAllContent()
+        if (this.hasDocxContentTarget) {
+          this.docxContentTarget.innerHTML = `<p class="text-center text-gray-600 p-8">${text}</p>`
+          this.docxContentTarget.classList.remove('hidden')
+        }
+      }
+
+      showImageContainer() {
+        this.hideAllContent()
+        if (this.hasImageContainerTarget) this.imageContainerTarget.classList.remove('hidden')
+      }
+
+      showPDFCanvas() {
+        this.hideAllContent()
+        if (this.hasPdfCanvasTarget) this.pdfCanvasTarget.classList.remove('hidden')
+      }
+
+      hideAllContent() {
+        const targets = ['pdfCanvas', 'docxContent', 'imageContainer', 'errorMessage']
+        targets.forEach(targetName => {
+          const hasMethod = `has${targetName.charAt(0).toUpperCase() + targetName.slice(1)}Target`
+          const targetProperty = `${targetName}Target`
+          if (this[hasMethod] && this[targetProperty]) {
+            this[targetProperty].classList.add('hidden')
+          }
+        })
+      }
+
+      updateUI() {
+        if (this.hasPageInputTarget) this.pageInputTarget.value = this.currentPage
+        if (this.hasTotalPagesTarget) this.totalPagesTarget.textContent = this.totalPages
+        if (this.hasZoomLevelTarget) this.zoomLevelTarget.textContent = Math.round(this.scale * 100) + '%'
+
+        if (this.hasPrevBtnTarget) this.prevBtnTarget.disabled = this.currentPage <= 1
+        if (this.hasNextBtnTarget) this.nextBtnTarget.disabled = this.currentPage >= this.totalPages
+      }
+    }
+
+    // Register the controller with Stimulus
+    if (!window.stimulusApplication) {
+      const { Application } = await import("https://unpkg.com/@hotwired/stimulus@3.2.2/dist/stimulus.js")
+      window.stimulusApplication = Application.start()
+    }
+    
+    if (!window.stimulusApplication.router.modules.find(m => m.identifier === "document-preview--viewer")) {
+      window.stimulusApplication.register("document-preview--viewer", window.DocumentPreviewViewerController)
+    }
+  }
+</script>

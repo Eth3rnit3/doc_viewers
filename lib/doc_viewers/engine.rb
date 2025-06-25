@@ -19,5 +19,6 @@ module DocViewers
         include DocViewers::ApplicationHelper
       end
     end
+
   end
 end
