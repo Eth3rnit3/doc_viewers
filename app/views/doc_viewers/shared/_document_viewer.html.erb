@@ -273,6 +273,9 @@
 
           const page = await this.pdfDocument.getPage(this.currentPage)
           const viewport = page.getViewport({ scale: this.scale })
+          
+          // Debug: log the actual scale being used
+          console.log(`Rendering PDF page ${this.currentPage} with scale: ${this.scale}, viewport size: ${viewport.width}x${viewport.height}`)
 
           // Create a completely new canvas element for this render
           const newCanvas = document.createElement('canvas')
@@ -285,6 +288,9 @@
           
           // Update the target reference
           newCanvas.setAttribute('data-document-preview--viewer-target', 'pdfCanvas')
+          
+          // Remove any existing transform (we use PDF.js scale instead of CSS)
+          newCanvas.style.transform = 'none'
           
           const context = newCanvas.getContext('2d')
 
