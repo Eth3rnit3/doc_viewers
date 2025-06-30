@@ -38,6 +38,43 @@ A Rails mountable engine that provides a universal multi-page document preview c
     download_name: "custom-filename.pdf" %>
 ```
 
+### Direct URL Usage
+
+You can also use the viewer directly with URLs:
+
+```erb
+<%= document_preview_from_url "https://example.com/document.pdf" %>
+```
+
+With options:
+
+```erb
+<%= document_preview_from_url "https://example.com/document.pdf",
+    doc_type: "pdf",
+    initial_page: 3,
+    download_name: "my-document.pdf" %>
+```
+
+### Image Collections
+
+For displaying multiple images as a paginated collection:
+
+```erb
+<%= document_preview_from_images [
+  "https://example.com/page1.jpg",
+  "https://example.com/page2.jpg",
+  "https://example.com/page3.jpg"
+] %>
+```
+
+With options:
+
+```erb
+<%= document_preview_from_images @image_urls,
+    initial_page: 2,
+    download_name: "photo-collection" %>
+```
+
 ### Toolbar Features
 
 The viewer includes a minimal but extensible toolbar:
