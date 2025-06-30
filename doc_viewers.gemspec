@@ -29,7 +29,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "tailwindcss-rails", "~> 3.0"
   spec.add_dependency "importmap-rails", "~> 2.0"
 
-  spec.add_development_dependency "rspec-rails", "~> 7.0"
+  spec.add_development_dependency "rspec-rails", "~> 8.0"
   spec.add_development_dependency "capybara", "~> 3.40"
   spec.add_development_dependency "selenium-webdriver", "~> 4.0"
   spec.add_development_dependency "standard", "~> 1.0"
